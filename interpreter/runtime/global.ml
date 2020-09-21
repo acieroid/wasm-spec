@@ -19,3 +19,8 @@ let store glob v =
   if glob.mut <> Mutable then raise NotMutable;
   if Values.type_of v <> Values.type_of glob.content then raise Type;
   glob.content <- v
+
+let update_value glob v =
+  if Values.type_of v <> Values.type_of glob.content then raise Type;
+  glob.content <- v
+  

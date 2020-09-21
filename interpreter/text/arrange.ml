@@ -187,10 +187,10 @@ end
 let oper (intop, floatop) op =
   value_type (type_of op) ^ "." ^
   (match op with
-  | I32 o -> intop "32" o
-  | I64 o -> intop "64" o
-  | F32 o -> floatop "32" o
-  | F64 o -> floatop "64" o
+  | I32 (o, _) -> intop "32" o
+  | I64 (o, _) -> intop "64" o
+  | F32 (o, _) -> floatop "32" o
+  | F64 (o, _) -> floatop "64" o
   )
 
 let unop = oper (IntOp.unop, FloatOp.unop)
@@ -384,16 +384,16 @@ let module_ = module_with_var_opt None
 
 let literal mode lit =
   match lit.it with
-  | Values.I32 i ->
+  | Values.I32 (i, _) ->
     let f = if mode = `Binary then I32.to_hex_string else I32.to_string_s in
     Node ("i32.const " ^ f i, [])
-  | Values.I64 i ->
+  | Values.I64 (i, _) ->
     let f = if mode = `Binary then I64.to_hex_string else I64.to_string_s in
     Node ("i64.const " ^ f i, [])
-  | Values.F32 z ->
+  | Values.F32 (z, _) ->
     let f = if mode = `Binary then F32.to_hex_string else F32.to_string in
     Node ("f32.const " ^ f z, [])
-  | Values.F64 z ->
+  | Values.F64 (z, _) ->
     let f = if mode = `Binary then F64.to_hex_string else F64.to_string in
     Node ("f64.const " ^ f z, [])
 
@@ -442,8 +442,8 @@ let result mode res =
   | NanResult nanop ->
     match nanop.it with
     | Values.I32 _ | Values.I64 _ -> assert false
-    | Values.F32 n -> Node ("f32.const " ^ nan n, [])
-    | Values.F64 n -> Node ("f64.const " ^ nan n, [])
+    | Values.F32 (n, _) -> Node ("f32.const " ^ nan n, [])
+    | Values.F64 (n, _) -> Node ("f64.const " ^ nan n, [])
 
 let assertion mode ass =
   match ass.it with

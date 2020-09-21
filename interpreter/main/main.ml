@@ -3,7 +3,8 @@ let version = "1.0"
 
 let configure () =
   Import.register (Utf8.decode "spectest") Spectest.lookup;
-  Import.register (Utf8.decode "env") Env.lookup
+  Import.register (Utf8.decode "env") Env.lookup;
+  Import.register (Utf8.decode "wasi_snapshot_preview1") Wasi.lookup
 
 let banner () =
   print_endline (name ^ " " ^ version ^ " reference interpreter")

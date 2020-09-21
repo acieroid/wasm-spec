@@ -10,10 +10,10 @@ open Instance
 let global (GlobalType (t, _) as gt) =
   let v =
     match t with
-    | I32Type -> I32 666l
-    | I64Type -> I64 666L
-    | F32Type -> F32 (F32.of_float 666.6)
-    | F64Type -> F64 (F64.of_float 666.6)
+    | I32Type -> I32 (666l, no_taint)
+    | I64Type -> I64 (666L, no_taint)
+    | F32Type -> F32 (F32.of_float 666.6, no_taint)
+    | F64Type -> F64 (F64.of_float 666.6, no_taint)
   in Global.alloc gt v
 
 let table = Table.alloc (TableType ({min = 10l; max = Some 20l}, FuncRefType))

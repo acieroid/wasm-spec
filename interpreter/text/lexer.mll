@@ -165,13 +165,13 @@ rule token = parse
     { let open Source in
       CONST (numop t
         (fun s -> let n = I32.of_string s.it in
-          i32_const (n @@ s.at), Values.I32 n)
+          i32_const (n @@ s.at), Values.I32 (n, Values.no_taint))
         (fun s -> let n = I64.of_string s.it in
-          i64_const (n @@ s.at), Values.I64 n)
+          i64_const (n @@ s.at), Values.I64 (n, Values.no_taint))
         (fun s -> let n = F32.of_string s.it in
-          f32_const (n @@ s.at), Values.F32 n)
+          f32_const (n @@ s.at), Values.F32 (n, Values.no_taint))
         (fun s -> let n = F64.of_string s.it in
-          f64_const (n @@ s.at), Values.F64 n))
+          f64_const (n @@ s.at), Values.F64 (n, Values.no_taint)))
     }
   | "funcref" { FUNCREF }
   | "mut" { MUT }

@@ -191,28 +191,28 @@ let lookup (mods : modules) x_opt name at =
 (* Wrappers *)
 
 let eq_of = function
-  | I32Type -> Values.I32 I32Op.Eq
-  | I64Type -> Values.I64 I64Op.Eq
-  | F32Type -> Values.F32 F32Op.Eq
-  | F64Type -> Values.F64 F64Op.Eq
+  | I32Type -> Values.I32 (I32Op.Eq, Values.no_taint)
+  | I64Type -> Values.I64 (I64Op.Eq, Values.no_taint)
+  | F32Type -> Values.F32 (F32Op.Eq, Values.no_taint)
+  | F64Type -> Values.F64 (F64Op.Eq, Values.no_taint)
 
 let and_of = function
-  | I32Type | F32Type -> Values.I32 I32Op.And
-  | I64Type | F64Type -> Values.I64 I64Op.And
+  | I32Type | F32Type -> Values.I32 (I32Op.And, Values.no_taint)
+  | I64Type | F64Type -> Values.I64 (I64Op.And, Values.no_taint)
 
 let reinterpret_of = function
   | I32Type -> I32Type, Nop
   | I64Type -> I64Type, Nop
-  | F32Type -> I32Type, Convert (Values.I32 I32Op.ReinterpretFloat)
-  | F64Type -> I64Type, Convert (Values.I64 I64Op.ReinterpretFloat)
+  | F32Type -> I32Type, Convert (Values.I32 (I32Op.ReinterpretFloat, Values.no_taint))
+  | F64Type -> I64Type, Convert (Values.I64 (I64Op.ReinterpretFloat, Values.no_taint))
 
 let canonical_nan_of = function
-  | I32Type | F32Type -> Values.I32 (F32.to_bits F32.pos_nan)
-  | I64Type | F64Type -> Values.I64 (F64.to_bits F64.pos_nan)
+  | I32Type | F32Type -> Values.I32 (F32.to_bits F32.pos_nan, Values.no_taint)
+  | I64Type | F64Type -> Values.I64 (F64.to_bits F64.pos_nan, Values.no_taint)
 
 let abs_mask_of = function
-  | I32Type | F32Type -> Values.I32 Int32.max_int
-  | I64Type | F64Type -> Values.I64 Int64.max_int
+  | I32Type | F32Type -> Values.I32 (Int32.max_int, Values.no_taint)
+  | I64Type | F64Type -> Values.I64 (Int64.max_int, Values.no_taint)
 
 let invoke ft lits at =
   [ft @@ at], FuncImport (1l @@ at) @@ at,
@@ -233,13 +233,13 @@ let assert_return ress ts at =
         Const lit @@ at;
         reinterpret @@ at;
         Compare (eq_of t') @@ at;
-        Test (Values.I32 I32Op.Eqz) @@ at;
+        Test (Values.I32 (I32Op.Eqz, Values.no_taint)) @@ at;
         BrIf (0l @@ at) @@ at ]
     | NanResult nanop ->
       let nan =
         match nanop.it with
         | Values.I32 _ | Values.I64 _ -> assert false
-        | Values.F32 n | Values.F64 n -> n
+        | Values.F32 (n, _) | Values.F64 (n, _) -> n
       in
       let nan_bitmask_of =
         match nan with
@@ -253,7 +253,7 @@ let assert_return ress ts at =
         Binary (and_of t') @@ at;
         Const (canonical_nan_of t' @@ at) @@ at;
         Compare (eq_of t') @@ at;
-        Test (Values.I32 I32Op.Eqz) @@ at;
+        Test (Values.I32 (I32Op.Eqz, Values.no_taint)) @@ at;
         BrIf (0l @@ at) @@ at ]
   in [], List.flatten (List.rev_map test ress)
 
@@ -322,10 +322,10 @@ let of_float z =
 
 let of_literal lit =
   match lit.it with
-  | Values.I32 i -> I32.to_string_s i
-  | Values.I64 i -> "int64(\"" ^ I64.to_string_s i ^ "\")"
-  | Values.F32 z -> of_float (F32.to_float z)
-  | Values.F64 z -> of_float (F64.to_float z)
+  | Values.I32 (i, _) -> I32.to_string_s i
+  | Values.I64 (i, _) -> "int64(\"" ^ I64.to_string_s i ^ "\")"
+  | Values.F32 (z, _) -> of_float (F32.to_float z)
+  | Values.F64 (z, _) -> of_float (F64.to_float z)
 
 let of_nan = function
   | CanonicalNan -> "nan:canonical"
@@ -337,7 +337,7 @@ let of_result res =
   | NanResult nanop ->
     match nanop.it with
     | Values.I32 _ | Values.I64 _ -> assert false
-    | Values.F32 n | Values.F64 n -> of_nan n
+    | Values.F32 (n, _) | Values.F64 (n, _) -> of_nan n
 
 let rec of_definition def =
   match def.it with

@@ -26,7 +26,7 @@ let single = function
   | vs -> error "type error, too many arguments"
 
 let int = function
-  | I32 i -> Int32.to_int i
+  | I32 (i, _) -> Int32.to_int i
   | v -> type_error v I32Type
 
 

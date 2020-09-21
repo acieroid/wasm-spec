@@ -126,16 +126,16 @@ struct
 
   let cvtop op v =
     match op with
-    | WrapI64 -> I32 (I32_convert.wrap_i64 (I64Op.of_value 1 v))
-    | TruncSF32 -> I32 (I32_convert.trunc_f32_s (F32Op.of_value 1 v))
-    | TruncUF32 -> I32 (I32_convert.trunc_f32_u (F32Op.of_value 1 v))
-    | TruncSF64 -> I32 (I32_convert.trunc_f64_s (F64Op.of_value 1 v))
-    | TruncUF64 -> I32 (I32_convert.trunc_f64_u (F64Op.of_value 1 v))
-    | TruncSatSF32 -> I32 (I32_convert.trunc_sat_f32_s (F32Op.of_value 1 v))
-    | TruncSatUF32 -> I32 (I32_convert.trunc_sat_f32_u (F32Op.of_value 1 v))
-    | TruncSatSF64 -> I32 (I32_convert.trunc_sat_f64_s (F64Op.of_value 1 v))
-    | TruncSatUF64 -> I32 (I32_convert.trunc_sat_f64_u (F64Op.of_value 1 v))
-    | ReinterpretFloat -> I32 (I32_convert.reinterpret_f32 (F32Op.of_value 1 v))
+    | WrapI64 -> I32 (I32_convert.wrap_i64 (I64Op.of_value 1 v), no_taint)
+    | TruncSF32 -> I32 (I32_convert.trunc_f32_s (F32Op.of_value 1 v), no_taint)
+    | TruncUF32 -> I32 (I32_convert.trunc_f32_u (F32Op.of_value 1 v), no_taint)
+    | TruncSF64 -> I32 (I32_convert.trunc_f64_s (F64Op.of_value 1 v), no_taint)
+    | TruncUF64 -> I32 (I32_convert.trunc_f64_u (F64Op.of_value 1 v), no_taint)
+    | TruncSatSF32 -> I32 (I32_convert.trunc_sat_f32_s (F32Op.of_value 1 v), no_taint)
+    | TruncSatUF32 -> I32 (I32_convert.trunc_sat_f32_u (F32Op.of_value 1 v), no_taint)
+    | TruncSatSF64 -> I32 (I32_convert.trunc_sat_f64_s (F64Op.of_value 1 v), no_taint)
+    | TruncSatUF64 -> I32 (I32_convert.trunc_sat_f64_u (F64Op.of_value 1 v), no_taint)
+    | ReinterpretFloat -> I32 (I32_convert.reinterpret_f32 (F32Op.of_value 1 v), no_taint)
     | ExtendSI32 -> raise (TypeError (1, v, I32Type))
     | ExtendUI32 -> raise (TypeError (1, v, I32Type))
 end
@@ -146,17 +146,17 @@ struct
 
   let cvtop op v =
     match op with
-    | ExtendSI32 -> I64 (I64_convert.extend_i32_s (I32Op.of_value 1 v))
-    | ExtendUI32 -> I64 (I64_convert.extend_i32_u (I32Op.of_value 1 v))
-    | TruncSF32 -> I64 (I64_convert.trunc_f32_s (F32Op.of_value 1 v))
-    | TruncUF32 -> I64 (I64_convert.trunc_f32_u (F32Op.of_value 1 v))
-    | TruncSF64 -> I64 (I64_convert.trunc_f64_s (F64Op.of_value 1 v))
-    | TruncUF64 -> I64 (I64_convert.trunc_f64_u (F64Op.of_value 1 v))
-    | TruncSatSF32 -> I64 (I64_convert.trunc_sat_f32_s (F32Op.of_value 1 v))
-    | TruncSatUF32 -> I64 (I64_convert.trunc_sat_f32_u (F32Op.of_value 1 v))
-    | TruncSatSF64 -> I64 (I64_convert.trunc_sat_f64_s (F64Op.of_value 1 v))
-    | TruncSatUF64 -> I64 (I64_convert.trunc_sat_f64_u (F64Op.of_value 1 v))
-    | ReinterpretFloat -> I64 (I64_convert.reinterpret_f64 (F64Op.of_value 1 v))
+    | ExtendSI32 -> I64 (I64_convert.extend_i32_s (I32Op.of_value 1 v), no_taint)
+    | ExtendUI32 -> I64 (I64_convert.extend_i32_u (I32Op.of_value 1 v), no_taint)
+    | TruncSF32 -> I64 (I64_convert.trunc_f32_s (F32Op.of_value 1 v), no_taint)
+    | TruncUF32 -> I64 (I64_convert.trunc_f32_u (F32Op.of_value 1 v), no_taint)
+    | TruncSF64 -> I64 (I64_convert.trunc_f64_s (F64Op.of_value 1 v), no_taint)
+    | TruncUF64 -> I64 (I64_convert.trunc_f64_u (F64Op.of_value 1 v), no_taint)
+    | TruncSatSF32 -> I64 (I64_convert.trunc_sat_f32_s (F32Op.of_value 1 v), no_taint)
+    | TruncSatUF32 -> I64 (I64_convert.trunc_sat_f32_u (F32Op.of_value 1 v), no_taint)
+    | TruncSatSF64 -> I64 (I64_convert.trunc_sat_f64_s (F64Op.of_value 1 v), no_taint)
+    | TruncSatUF64 -> I64 (I64_convert.trunc_sat_f64_u (F64Op.of_value 1 v), no_taint)
+    | ReinterpretFloat -> I64 (I64_convert.reinterpret_f64 (F64Op.of_value 1 v), no_taint)
     | WrapI64 -> raise (TypeError (1, v, I64Type))
 end
 
@@ -166,12 +166,12 @@ struct
 
   let cvtop op v =
     match op with
-    | DemoteF64 -> F32 (F32_convert.demote_f64 (F64Op.of_value 1 v))
-    | ConvertSI32 -> F32 (F32_convert.convert_i32_s (I32Op.of_value 1 v))
-    | ConvertUI32 -> F32 (F32_convert.convert_i32_u (I32Op.of_value 1 v))
-    | ConvertSI64 -> F32 (F32_convert.convert_i64_s (I64Op.of_value 1 v))
-    | ConvertUI64 -> F32 (F32_convert.convert_i64_u (I64Op.of_value 1 v))
-    | ReinterpretInt -> F32 (F32_convert.reinterpret_i32 (I32Op.of_value 1 v))
+    | DemoteF64 -> F32 (F32_convert.demote_f64 (F64Op.of_value 1 v), no_taint)
+    | ConvertSI32 -> F32 (F32_convert.convert_i32_s (I32Op.of_value 1 v), no_taint)
+    | ConvertUI32 -> F32 (F32_convert.convert_i32_u (I32Op.of_value 1 v), no_taint)
+    | ConvertSI64 -> F32 (F32_convert.convert_i64_s (I64Op.of_value 1 v), no_taint)
+    | ConvertUI64 -> F32 (F32_convert.convert_i64_u (I64Op.of_value 1 v), no_taint)
+    | ReinterpretInt -> F32 (F32_convert.reinterpret_i32 (I32Op.of_value 1 v), no_taint)
     | PromoteF32 -> raise (TypeError (1, v, F32Type))
 end
 
@@ -181,12 +181,12 @@ struct
 
   let cvtop op v =
     match op with
-    | PromoteF32 -> F64 (F64_convert.promote_f32 (F32Op.of_value 1 v))
-    | ConvertSI32 -> F64 (F64_convert.convert_i32_s (I32Op.of_value 1 v))
-    | ConvertUI32 -> F64 (F64_convert.convert_i32_u (I32Op.of_value 1 v))
-    | ConvertSI64 -> F64 (F64_convert.convert_i64_s (I64Op.of_value 1 v))
-    | ConvertUI64 -> F64 (F64_convert.convert_i64_u (I64Op.of_value 1 v))
-    | ReinterpretInt -> F64 (F64_convert.reinterpret_i64 (I64Op.of_value 1 v))
+    | PromoteF32 -> F64 (F64_convert.promote_f32 (F32Op.of_value 1 v), no_taint)
+    | ConvertSI32 -> F64 (F64_convert.convert_i32_s (I32Op.of_value 1 v), no_taint)
+    | ConvertUI32 -> F64 (F64_convert.convert_i32_u (I32Op.of_value 1 v), no_taint)
+    | ConvertSI64 -> F64 (F64_convert.convert_i64_s (I64Op.of_value 1 v), no_taint)
+    | ConvertUI64 -> F64 (F64_convert.convert_i64_u (I64Op.of_value 1 v), no_taint)
+    | ReinterpretInt -> F64 (F64_convert.reinterpret_i64 (I64Op.of_value 1 v), no_taint)
     | DemoteF64 -> raise (TypeError (1, v, F64Type))
 end
 
@@ -194,10 +194,10 @@ end
 (* Dispatch *)
 
 let op i32 i64 f32 f64 = function
-  | I32 x -> i32 x
-  | I64 x -> i64 x
-  | F32 x -> f32 x
-  | F64 x -> f64 x
+  | I32 (x, _) -> i32 x
+  | I64 (x, _) -> i64 x
+  | F32 (x, _) -> f32 x
+  | F64 (x, _) -> f64 x
 
 let eval_unop = op I32Op.unop I64Op.unop F32Op.unop F64Op.unop
 let eval_binop = op I32Op.binop I64Op.binop F32Op.binop F64Op.binop

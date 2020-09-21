@@ -259,7 +259,7 @@ let string_of_result r =
   | NanResult nanop ->
     match nanop.it with
     | Values.I32 _ | Values.I64 _ -> assert false
-    | Values.F32 n | Values.F64 n -> string_of_nan n
+    | Values.F32 (n, _) | Values.F64 (n, _) -> string_of_nan n
 
 let string_of_results = function
   | [r] -> string_of_result r
@@ -349,12 +349,12 @@ let assert_result at got expect =
       | LitResult v' -> v <> v'.it
       | NanResult nanop ->
         match nanop.it, v with
-        | F32 CanonicalNan, F32 z -> z <> F32.pos_nan && z <> F32.neg_nan
-        | F64 CanonicalNan, F64 z -> z <> F64.pos_nan && z <> F64.neg_nan
-        | F32 ArithmeticNan, F32 z ->
+        | F32 (CanonicalNan, _), F32 (z, _) -> z <> F32.pos_nan && z <> F32.neg_nan
+        | F64 (CanonicalNan, _), F64 (z, _) -> z <> F64.pos_nan && z <> F64.neg_nan
+        | F32 (ArithmeticNan, _), F32 (z, _) ->
           let pos_nan = F32.to_bits F32.pos_nan in
           Int32.logand (F32.to_bits z) pos_nan <> pos_nan
-        | F64 ArithmeticNan, F64 z ->
+        | F64 (ArithmeticNan, _), F64 (z, _) ->
           let pos_nan = F64.to_bits F64.pos_nan in
           Int64.logand (F64.to_bits z) pos_nan <> pos_nan
         | _, _ -> false

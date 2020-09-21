@@ -101,7 +101,7 @@ let type_testop = Values.type_of
 let type_relop = Values.type_of
 
 let type_cvtop at = function
-  | Values.I32 cvtop ->
+  | Values.I32 (cvtop, _) ->
     let open I32Op in
     (match cvtop with
     | ExtendSI32 | ExtendUI32 -> error at "invalid conversion"
@@ -110,7 +110,7 @@ let type_cvtop at = function
     | ReinterpretFloat -> F32Type
     | TruncSF64 | TruncUF64 | TruncSatSF64 | TruncSatUF64 -> F64Type
     ), I32Type
-  | Values.I64 cvtop ->
+  | Values.I64 (cvtop, _) ->
     let open I64Op in
     (match cvtop with
     | ExtendSI32 | ExtendUI32 -> I32Type
@@ -119,7 +119,7 @@ let type_cvtop at = function
     | TruncSF64 | TruncUF64 | TruncSatSF64 | TruncSatUF64
     | ReinterpretFloat -> F64Type
     ), I64Type
-  | Values.F32 cvtop ->
+  | Values.F32 (cvtop, _) ->
     let open F32Op in
     (match cvtop with
     | ConvertSI32 | ConvertUI32 | ReinterpretInt -> I32Type
@@ -127,7 +127,7 @@ let type_cvtop at = function
     | PromoteF32 -> error at "invalid conversion"
     | DemoteF64 -> F64Type
     ), F32Type
-  | Values.F64 cvtop ->
+  | Values.F64 (cvtop, _) ->
     let open F64Op in
     (match cvtop with
     | ConvertSI32 | ConvertUI32 -> I32Type
@@ -144,7 +144,7 @@ let check_pack sz t at =
 
 let check_unop unop at =
   match unop with
-  | Values.I32 (IntOp.ExtendS sz) | Values.I64 (IntOp.ExtendS sz) ->
+  | Values.I32 (IntOp.ExtendS sz, _) | Values.I64 (IntOp.ExtendS sz, _) ->
     check_pack sz (Values.type_of unop) at
   | _ -> ()
 

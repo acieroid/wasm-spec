@@ -12,3 +12,5 @@ val type_of : global -> global_type
 
 val load : global -> value
 val store : global -> value -> unit  (* raises Type, NotMutable *)
+
+val update_value : global -> value -> unit

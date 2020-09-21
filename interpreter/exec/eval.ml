@@ -50,12 +50,12 @@ type code = value stack * admin_instr list
 and admin_instr = admin_instr' phrase
 and admin_instr' =
   | Plain of instr'
-  | Invoke of func_inst
+  | Invoke of func_inst * var
   | Trapping of string
   | Returning of value stack
   | Breaking of int32 * value stack
   | Label of int32 * instr list * code
-  | Frame of int32 * frame * code
+  | Frame of int32 * frame * code * var
 
 type config =
 {
@@ -109,6 +109,11 @@ let take n (vs : 'a stack) at =
 let drop n (vs : 'a stack) at =
   try Lib.List32.drop n vs with Failure _ -> Crash.error at "stack underflow"
 
+let print_taint (category : string) (fidx : int32) (vs : value list) =
+  Printf.printf "%s: [%s]" category
+    (String.concat ";" (List.map (fun v ->
+         TaintSet.to_string (value_get_taint_f v fidx)) vs))
+
 
 (* Evaluation *)
 
@@ -121,6 +126,24 @@ let drop n (vs : 'a stack) at =
  *   c : config
  *)
 
+(* What we care about:
+   - how argument values flow
+   - how globals flow
+   - (how memory flows)
+  and in particular their impact on:
+   - the return value
+   - the globals
+   - (memory)
+  We can have a shadow stack and shadow heap to do that.
+   (But it is slightly tricky with this specific implementation, or not)
+  We want to print a function summary after each function execution.
+
+  Upon function invocation, build the shadow locals, globals and memory to store their taint.
+  Upon function return, look up the shadow globals, memory, and the top value of the stack (if returning a value).
+  This is the summary that we print.
+
+  Or much simpler: taint values.
+ *)
 let rec step (c : config) : config =
   let {frame; code = vs, es; _} = c in
   let e = List.hd es in
@@ -147,47 +170,47 @@ let rec step (c : config) : config =
         let args, vs' = take n1 vs e.at, drop n1 vs e.at in
         vs', [Label (n1, [e' @@ e.at], (args, List.map plain es')) @@ e.at]
 
-      | If (bt, es1, es2), I32 0l :: vs' ->
+      | If (bt, es1, es2), I32 (0l, _) :: vs' ->
         vs', [Plain (Block (bt, es2)) @@ e.at]
 
-      | If (bt, es1, es2), I32 i :: vs' ->
+      | If (bt, es1, es2), I32 (i, _) :: vs' ->
         vs', [Plain (Block (bt, es1)) @@ e.at]
 
       | Br x, vs ->
         [], [Breaking (x.it, vs) @@ e.at]
 
-      | BrIf x, I32 0l :: vs' ->
+      | BrIf x, I32 (0l, _) :: vs' ->
         vs', []
 
-      | BrIf x, I32 i :: vs' ->
+      | BrIf x, I32 (i, _) :: vs' ->
         vs', [Plain (Br x) @@ e.at]
 
-      | BrTable (xs, x), I32 i :: vs' when I32.ge_u i (Lib.List32.length xs) ->
+      | BrTable (xs, x), I32 (i, _) :: vs' when I32.ge_u i (Lib.List32.length xs) ->
         vs', [Plain (Br x) @@ e.at]
 
-      | BrTable (xs, x), I32 i :: vs' ->
+      | BrTable (xs, x), I32 (i, _) :: vs' ->
         vs', [Plain (Br (Lib.List32.nth xs i)) @@ e.at]
 
       | Return, vs ->
         [], [Returning vs @@ e.at]
 
       | Call x, vs ->
-        vs, [Invoke (func frame.inst x) @@ e.at]
+        vs, [Invoke (func frame.inst x, x) @@ e.at]
 
-      | CallIndirect x, I32 i :: vs ->
+      | CallIndirect x, I32 (i, _) :: vs ->
         let func = func_elem frame.inst (0l @@ e.at) i e.at in
         if type_ frame.inst x <> Func.type_of func then
           vs, [Trapping "indirect call type mismatch" @@ e.at]
         else
-          vs, [Invoke func @@ e.at]
+          vs, [Invoke (func, { it = i; at = e.at }) @@ e.at]
 
       | Drop, v :: vs' ->
         vs', []
 
-      | Select, I32 0l :: v2 :: v1 :: vs' ->
+      | Select, I32 (0l, _) :: v2 :: v1 :: vs' ->
         v2 :: vs', []
 
-      | Select, I32 i :: v2 :: v1 :: vs' ->
+      | Select, I32 (i, _) :: v2 :: v1 :: vs' ->
         v1 :: vs', []
 
       | LocalGet x, vs ->
@@ -209,7 +232,7 @@ let rec step (c : config) : config =
         with Global.NotMutable -> Crash.error e.at "write to immutable global"
            | Global.Type -> Crash.error e.at "type mismatch at global write")
 
-      | Load {offset; ty; sz; _}, I32 i :: vs' ->
+      | Load {offset; ty; sz; _}, I32 (i, _) :: vs' ->
         let mem = memory frame.inst (0l @@ e.at) in
         let addr = I64_convert.extend_i32_u i in
         (try
@@ -220,7 +243,7 @@ let rec step (c : config) : config =
           in v :: vs', []
         with exn -> vs', [Trapping (memory_error e.at exn) @@ e.at])
 
-      | Store {offset; sz; _}, v :: I32 i :: vs' ->
+      | Store {offset; sz; _}, v :: I32 (i, _) :: vs' ->
         let mem = memory frame.inst (0l @@ e.at) in
         let addr = I64_convert.extend_i32_u i in
         (try
@@ -233,37 +256,52 @@ let rec step (c : config) : config =
 
       | MemorySize, vs ->
         let mem = memory frame.inst (0l @@ e.at) in
-        I32 (Memory.size mem) :: vs, []
+        I32 (Memory.size mem, no_taint) :: vs, []
 
-      | MemoryGrow, I32 delta :: vs' ->
+      | MemoryGrow, I32 (delta, _) :: vs' ->
         let mem = memory frame.inst (0l @@ e.at) in
         let old_size = Memory.size mem in
         let result =
           try Memory.grow mem delta; old_size
           with Memory.SizeOverflow | Memory.SizeLimit | Memory.OutOfMemory -> -1l
-        in I32 result :: vs', []
+        in I32 (result, no_taint) :: vs', []
 
       | Const v, vs ->
         v.it :: vs, []
 
       | Test testop, v :: vs' ->
-        (try value_of_bool (Eval_numeric.eval_testop testop v) :: vs', []
+        (try
+           let v' = value_of_bool (Eval_numeric.eval_testop testop v) in
+           (* Taint propagates from v to v' *)
+           value_set_taint v' (value_get_taint v) :: vs', []
         with exn -> vs', [Trapping (numeric_error e.at exn) @@ e.at])
 
       | Compare relop, v2 :: v1 :: vs' ->
-        (try value_of_bool (Eval_numeric.eval_relop relop v1 v2) :: vs', []
+        (try
+           let v' = value_of_bool (Eval_numeric.eval_relop relop v1 v2) in
+           (* Taint propagates from v1 and v2 to v' *)
+           value_set_taint v' (taint_join (value_get_taint v1) (value_get_taint v2)) :: vs', []
         with exn -> vs', [Trapping (numeric_error e.at exn) @@ e.at])
 
       | Unary unop, v :: vs' ->
-        (try Eval_numeric.eval_unop unop v :: vs', []
+        (try
+           let v' = Eval_numeric.eval_unop unop v in
+           (* Taint propagates from v to v' *)
+           value_set_taint v' (value_get_taint v) :: vs', []
         with exn -> vs', [Trapping (numeric_error e.at exn) @@ e.at])
 
       | Binary binop, v2 :: v1 :: vs' ->
-        (try Eval_numeric.eval_binop binop v1 v2 :: vs', []
+        (try
+           let v' = Eval_numeric.eval_binop binop v1 v2 in
+           (* Taint propagates from v1 and v2 to v *)
+           value_set_taint v' (taint_join (value_get_taint v1) (value_get_taint v2)) :: vs', []
         with exn -> vs', [Trapping (numeric_error e.at exn) @@ e.at])
 
       | Convert cvtop, v :: vs' ->
-        (try Eval_numeric.eval_cvtop cvtop v :: vs', []
+        (try
+           let v' = Eval_numeric.eval_cvtop cvtop v in
+           (* Taint propagates from v to v' *)
+           value_set_taint v' (value_get_taint v) :: vs', []
         with exn -> vs', [Trapping (numeric_error e.at exn) @@ e.at])
 
       | _ ->
@@ -301,34 +339,51 @@ let rec step (c : config) : config =
       let c' = step {c with code = code'} in
       vs, [Label (n, es0, c'.code) @@ e.at]
 
-    | Frame (n, frame', (vs', [])), vs ->
+    | Frame (n, frame', (vs', []), fidx), vs ->
+      (* Return from a function, without a return instruction *)
+      Printf.printf "summary from function %d -- " (Int32.to_int fidx.it);
+      print_taint "stack" fidx.it vs';
+      Printf.printf ", ";
+      print_taint "globals" fidx.it (List.map Global.load frame.inst.globals);
+      Printf.printf "\n";
       vs' @ vs, []
 
-    | Frame (n, frame', (vs', {it = Trapping msg; at} :: es')), vs ->
+    | Frame (n, frame', (vs', {it = Trapping msg; at} :: es'), _), vs ->
       vs, [Trapping msg @@ at]
 
-    | Frame (n, frame', (vs', {it = Returning vs0; at} :: es')), vs ->
+    | Frame (n, frame', (vs', {it = Returning vs0; at} :: es'), fidx), vs ->
+      (* Return from a function with a return instruction *)
+      Printf.printf "summary2 from function %d -- " (Int32.to_int fidx.it);
+      print_taint "stack" fidx.it vs0;
+      Printf.printf ", ";
+      print_taint "globals" fidx.it (List.map Global.load frame.inst.globals);
+      Printf.printf "\n";
       take n vs0 e.at @ vs, []
 
-    | Frame (n, frame', code'), vs ->
+    | Frame (n, frame', code', fidx), vs ->
       let c' = step {frame = frame'; code = code'; budget = c.budget - 1} in
-      vs, [Frame (n, c'.frame, c'.code) @@ e.at]
+      vs, [Frame (n, c'.frame, c'.code, fidx) @@ e.at]
 
-    | Invoke func, vs when c.budget = 0 ->
+    | Invoke (func, _), vs when c.budget = 0 ->
       Exhaustion.error e.at "call stack exhausted"
 
-    | Invoke func, vs ->
+    | Invoke (func, fidx), vs ->
       let FuncType (ins, out) = func_type_of func in
       let n1, n2 = Lib.List32.length ins, Lib.List32.length out in
       let args, vs' = take n1 vs e.at, drop n1 vs e.at in
       (match func with
-      | Func.AstFunc (t, inst', f) ->
-        let locals' = List.rev args @ List.map default_value f.it.locals in
+       | Func.AstFunc (t, inst', f) ->
+         let tainted_args = List.mapi (fun i v -> value_add_taint v fidx.it (TaintSet.singleton (TaintArgument i))) (List.rev args) in
+         List.iteri (fun i (g : Global.t) ->
+             Global.update_value g (value_add_taint (Global.load g) fidx.it (TaintSet.singleton (TaintGlobal i))))
+           !inst'.globals;
+         (* TODO: taint memory! *)
+        let locals' = tainted_args @ List.map default_value f.it.locals in
         let frame' = {inst = !inst'; locals = List.map ref locals'} in
         let instr' = [Label (n2, [], ([], List.map plain f.it.body)) @@ f.at] in
-        vs', [Frame (n2, frame', ([], instr')) @@ e.at]
+        vs', [Frame (n2, frame', ([], instr'), fidx) @@ e.at]
 
-      | Func.HostFunc (t, f) ->
+       | Func.HostFunc (t, f) ->
         try List.rev (f (List.rev args)) @ vs', []
         with Crash (_, msg) -> Crash.error e.at msg
       )
@@ -354,7 +409,7 @@ let invoke (func : func_inst) (vs : value list) : value list =
   let FuncType (ins, out) = Func.type_of func in
   if List.map Values.type_of vs <> ins then
     Crash.error at "wrong number or types of arguments";
-  let c = config empty_module_inst (List.rev vs) [Invoke func @@ at] in
+  let c = config empty_module_inst (List.rev vs) [Invoke (func, { it = -1l; at = no_region }) @@ at] in
   try List.rev (eval c) with Stack_overflow ->
     Exhaustion.error at "call stack exhausted"
 
@@ -366,7 +421,7 @@ let eval_const (inst : module_inst) (const : const) : value =
 
 let i32 (v : value) at =
   match v with
-  | I32 i -> i
+  | I32 (i, _) -> i
   | _ -> Crash.error at "type error: i32 value expected"
 
 

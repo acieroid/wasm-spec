@@ -99,18 +99,18 @@ let storen mem a o n x =
 let load_value mem a o t =
   let n = loadn mem a o (Types.size t) in
   match t with
-  | I32Type -> I32 (Int64.to_int32 n)
-  | I64Type -> I64 n
-  | F32Type -> F32 (F32.of_bits (Int64.to_int32 n))
-  | F64Type -> F64 (F64.of_bits n)
+  | I32Type -> I32 (Int64.to_int32 n, no_taint)
+  | I64Type -> I64 (n, no_taint)
+  | F32Type -> F32 (F32.of_bits (Int64.to_int32 n), no_taint)
+  | F64Type -> F64 (F64.of_bits n, no_taint)
 
 let store_value mem a o v =
   let x =
     match v with
-    | I32 x -> Int64.of_int32 x
-    | I64 x -> x
-    | F32 x -> Int64.of_int32 (F32.to_bits x)
-    | F64 x -> F64.to_bits x
+    | I32 (x, _) -> Int64.of_int32 x
+    | I64 (x, _) -> x
+    | F32 (x, _) -> Int64.of_int32 (F32.to_bits x)
+    | F64 (x, _) -> F64.to_bits x
   in storen mem a o (Types.size (Values.type_of v)) x
 
 let extend x n = function
@@ -122,8 +122,8 @@ let load_packed sz ext mem a o t =
   let n = packed_size sz in
   let x = extend (loadn mem a o n) n ext in
   match t with
-  | I32Type -> I32 (Int64.to_int32 x)
-  | I64Type -> I64 x
+  | I32Type -> I32 (Int64.to_int32 x, no_taint)
+  | I64Type -> I64 (x, no_taint)
   | _ -> raise Type
 
 let store_packed sz mem a o v =
@@ -131,7 +131,7 @@ let store_packed sz mem a o v =
   let n = packed_size sz in
   let x =
     match v with
-    | I32 x -> Int64.of_int32 x
-    | I64 x -> x
+    | I32 (x, no_taint) -> Int64.of_int32 x
+    | I64 (x, no_taint) -> x
     | _ -> raise Type
   in storen mem a o n x

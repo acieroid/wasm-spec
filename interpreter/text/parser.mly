@@ -43,8 +43,8 @@ let nanop f nan =
   let open Source in
   let open Values in
   match snd (f ("0" @@ no_region)) with
-  | F32 _ -> F32 nan.it @@ nan.at
-  | F64 _ -> F64 nan.it @@ nan.at
+  | F32 _ -> F32 (nan.it, no_taint) @@ nan.at
+  | F64 _ -> F64 (nan.it, no_taint) @@ nan.at
   | I32 _ | I64 _ -> error nan.at "NaN pattern with non-float type"
 
 let nat s at =
